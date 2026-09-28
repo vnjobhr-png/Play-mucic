@@ -1,0 +1,10 @@
+{
+  "short_name": "NhạcOffline",
+  "name": "Trình Phát Nhạc Offline PWA",
+  "icons": [{ "src": "https://flaticon.com", "sizes": "512x512", "type": "image/png" }],
+  "start_url": "index.html",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "display": "standalone",
+  "orientation": "portrait"
+}

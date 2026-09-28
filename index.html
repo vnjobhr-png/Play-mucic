@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nhạc Offline</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 20px; margin: 0; }
+        h2 { color: #1DB954; margin-bottom: 30px; }
+        .track { background: #181818; margin: 15px auto; padding: 20px; border-radius: 12px; max-width: 450px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .track-title { font-weight: bold; font-size: 1.1rem; margin-bottom: 10px; display: block; }
+        audio { width: 100%; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h2>🎵 KHO NHẠC MIX OFFLINE</h2>
+    <div id="playlist"></div>
+
+    <script>
+        // BƯỚC QUAN TRỌNG: Thay link nhạc của bạn vào đây
+        const tracks = [
+            { title: "DJ.KIM.CHOL.-.RICO.LATINO.1", url: "https://github.com/vnjobhr-png/My-music/releases/download/Music/DJ.KIM.CHOL.-.RICO.LATINO.1.SHORT.CUT.VERSION.ft.QDT.NH.C.VI.T.MIX.2026.-.DJ.Kim.Chol.mp3" },
+			{ title: "DJ.KIM.CHOL.-.RICO.LATINO.2", url: "https://github.com/vnjobhr-png/My-music/releases/download/Music/YTSave_YouTube_Media_vEksN23FpJ0_DJ-KIM-CHOL-RICO-LATINO-2-SHORT-CUT-VERSION-ft-QDT-NH.C-VI.T-MIX-2026_009_128k.mp3" },
+            { title: "Sticky-Fingers-Bloodshot-Eyes", url: "https://github.com/vnjobhr-png/My-music/releases/download/Music/YTSave_YouTube_Media_JIQmuBGYJYM_Sticky-Fingers-Bloodshot-Eyes-420-Blues-Rolled-in-Haze_007_128k.mp3" }
+        ];
+
+        const playlistDiv = document.getElementById('playlist');
+        tracks.forEach(track => {
+            const div = document.createElement('div');
+            div.className = 'track';
+            div.innerHTML = `<span class="track-title">${track.title}</span><audio controls src="${track.url}" preload="metadata"></audio>`;
+            playlistDiv.appendChild(div);
+        });
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log("Ứng dụng PWA đã sẵn sàng!"))
+                .catch(err => console.log("Lỗi đăng ký sw:", err));
+        }
+    </script>
+</body>
+</html>
