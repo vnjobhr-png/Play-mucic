@@ -1,6 +1,5 @@
-const CACHE_NAME = 'offline-music-v2';
+const CACHE_NAME = 'music-pwa-v3';
 
-// Tải trước giao diện
 self.addEventListener('install', (e) => {
     e.waitUntil(
         caches.open(CACHE_NAME).then((cache) => cache.addAll(['index.html', 'manifest.json']))
@@ -12,30 +11,37 @@ self.addEventListener('activate', (e) => {
     e.waitUntil(clients.claim());
 });
 
-// Xử lý tải nhạc dung lượng lớn cho cả iPhone (Safari) và Android
 self.addEventListener('fetch', (e) => {
     if (e.request.url.includes('.mp3')) {
         e.respondWith(
             caches.match(e.request).then((cachedResponse) => {
                 if (cachedResponse) {
-                    // Tạo phản hồi Range Request giả lập từ bộ nhớ cache để Safari không bị lỗi
-                    const pos = e.request.headers.get('Range') ? parseInt(e.request.headers.get('Range').split('=')[1].split('-')[0]) : 0;
-                    return cachedResponse.blob().then((blob) => {
-                        const total = blob.size;
-                        const status = e.request.headers.get('Range') ? 206 : 200;
-                        const headers = new Headers({
-                            'Content-Type': 'audio/mpeg',
-                            'Accept-Ranges': 'bytes',
-                            'Content-Length': String(total - pos)
+                    // Sửa lỗi cú pháp chia nhỏ file (Range Request) cho Safari và Chrome
+                    const rangeHeader = e.request.headers.get('Range');
+                    if (rangeHeader) {
+                        const parts = rangeHeader.replace(/bytes=/, "").split("-");
+                        return cachedResponse.blob().then((blob) => {
+                            const total = blob.size;
+                            const start = parseInt(parts[0], 10);
+                            const end = parts[1] ? parseInt(parts[1], 10) : total - 1;
+                            
+                            const chunk = blob.slice(start, end + 1);
+                            return new Response(chunk, {
+                                status: 206,
+                                statusText: 'Partial Content',
+                                headers: new Headers({
+                                    'Content-Type': 'audio/mpeg',
+                                    'Accept-Ranges': 'bytes',
+                                    'Content-Range': `bytes ${start}-${end}/${total}`,
+                                    'Content-Length': chunk.size
+                                })
+                            });
                         });
-                        if (e.request.headers.get('Range')) {
-                            headers.set('Content-Range', `bytes ${pos}-${total - 1}/${total}`);
-                        }
-                        return new Response(blob.slice(pos), { status, headers });
-                    });
+                    }
+                    return cachedResponse;
                 }
                 
-                // Nếu chưa có trong máy, tiến hành tải ngầm từ mạng và lưu lại
+                // Nếu chưa có trong bộ nhớ, tải từ mạng về và lưu lại
                 return fetch(e.request).then((networkResponse) => {
                     if (networkResponse.status === 200 || networkResponse.status === 206) {
                         const cacheCopy = networkResponse.clone();
