@@ -3,40 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nhạc Offline</title>
+    <title>Nhạc Offline iOS</title>
     <link rel="manifest" href="manifest.json">
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 20px; margin: 0; }
-        h2 { color: #1DB954; margin-bottom: 30px; }
+        h2 { color: #1DB954; margin-bottom: 25px; }
         .track { background: #181818; margin: 15px auto; padding: 20px; border-radius: 12px; max-width: 450px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .track-title { font-weight: bold; font-size: 1.1rem; margin-bottom: 10px; display: block; }
+        .track-title { font-weight: bold; font-size: 1.1rem; display: block; margin-bottom: 8px; }
+        .btn-download { background: #1DB954; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; margin-top: 10px; font-weight: bold;}
+        .status { font-size: 0.9rem; color: #b3b3b3; margin-top: 5px; }
         audio { width: 100%; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <h2>🎵 KHO NHẠC MIX OFFLINE</h2>
+    <h2>🎵 KHO NHẠC OFFLINE CHO IPHONE</h2>
     <div id="playlist"></div>
 
     <script>
-        // BƯỚC QUAN TRỌNG: Thay link nhạc của bạn vào đây
+        // ĐIỀN LINK NHẠC CHUẨN CỦA BẠN VÀO ĐÂY (Nhớ kiểm tra có chữ https://)
         const tracks = [
             { title: "DJ.KIM.CHOL.-.RICO.LATINO.1", url: "https://github.com/vnjobhr-png/My-music/releases/download/Music/DJ.KIM.CHOL.-.RICO.LATINO.1.SHORT.CUT.VERSION.ft.QDT.NH.C.VI.T.MIX.2026.-.DJ.Kim.Chol.mp3" },
 			{ title: "DJ.KIM.CHOL.-.RICO.LATINO.2", url: "https://github.com/vnjobhr-png/My-music/releases/download/Music/YTSave_YouTube_Media_vEksN23FpJ0_DJ-KIM-CHOL-RICO-LATINO-2-SHORT-CUT-VERSION-ft-QDT-NH.C-VI.T-MIX-2026_009_128k.mp3" },
             { title: "Sticky-Fingers-Bloodshot-Eyes", url: "https://github.com/vnjobhr-png/My-music/releases/download/Music/YTSave_YouTube_Media_JIQmuBGYJYM_Sticky-Fingers-Bloodshot-Eyes-420-Blues-Rolled-in-Haze_007_128k.mp3" }
         ];
 
-        const playlistDiv = document.getElementById('playlist');
-        tracks.forEach(track => {
-            const div = document.createElement('div');
-            div.className = 'track';
-            div.innerHTML = `<span class="track-title">${track.title}</span><audio controls src="${track.url}" preload="metadata"></audio>`;
-            playlistDiv.appendChild(div);
-        });
+        // Khởi tạo Cơ sở dữ liệu lưu trữ trên điện thoại (IndexedDB)
+        const dbName = "MusicOfflineDB";
+        let db;
+        const request = indexedDB.open(dbName, 1);
+        request.onupgradeneeded = (e) => {
+            db = e.target.result;
+            if (!db.objectStoreNames.contains("audioStore")) {
+                db.createObjectStore("audioStore");
+            }
+        };
+        request.onsuccess = (e) => { db = e.target.result; displayPlaylist(); };
+
+        function displayPlaylist() {
+            const playlistDiv = document.getElementById('playlist');
+            playlistDiv.innerHTML = "";
+            
+            tracks.forEach(track => {
+                const div = document.createElement('div');
+                div.className = 'track';
+                div.innerHTML = `
+                    <span class="track-title">${track.title}</span>
+                    <div id="status-${track.id}" class="status">Đang kiểm tra bộ nhớ...</div>
+                    <button id="btn-${track.id}" class="btn-download" onclick="downloadTrack('${track.id}', '${track.url}')">Tải Offline (Load trước)</button>
+                    <audio id="audio-${track.id}" controls preload="metadata"></audio>
+                `;
+                playlistDiv.appendChild(div);
+
+                // Kiểm tra xem bài hát đã được tải sẵn trong máy từ trước chưa
+                const transaction = db.transaction(["audioStore"], "readonly");
+                const store = transaction.objectStore("audioStore");
+                const getReq = store.get(track.id);
+                getReq.onsuccess = () => {
+                    if (getReq.result) {
+                        document.getElementById(`status-${track.id}`).innerText = "⚡ Đã tải xong! Sẵn sàng nghe offline.";
+                        document.getElementById(`status-${track.id}`).style.color = "#1DB954";
+                        document.getElementById(`btn-${track.id}`).style.display = "none";
+                        const audioUrl = URL.createObjectURL(getReq.result);
+                        document.getElementById(`audio-${track.id}`).src = audioUrl;
+                    } else {
+                        document.getElementById(`status-${track.id}`).innerText = "Chưa tải về máy.";
+                    }
+                };
+            });
+        }
+
+        // Hàm tải nhạc trực tiếp chạy riêng cho iPhone
+        function downloadTrack(id, url) {
+            const btn = document.getElementById(`btn-${id}`);
+            const statusDiv = document.getElementById(`status-${id}`);
+            btn.disabled = true;
+            statusDiv.innerText = "⏳ Đang tải nhạc về bộ nhớ máy... Vui lòng chờ.";
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error("Lỗi kết nối mạng");
+                    return response.blob();
+                })
+                .then(blob => {
+                    const transaction = db.transaction(["audioStore"], "readwrite");
+                    const store = transaction.objectStore("audioStore");
+                    store.put(blob, id);
+                    transaction.oncomplete = () => {
+                        statusDiv.innerText = "✅ Tải thành công! Ngày mai mất mạng vẫn nghe được.";
+                        statusDiv.style.color = "#1DB954";
+                        btn.style.display = "none";
+                        const audioUrl = URL.createObjectURL(blob);
+                        document.getElementById(`audio-${id}`).src = audioUrl;
+                    };
+                })
+                .catch(err => {
+                    statusDiv.innerText = "❌ Lỗi tải file. Hãy kiểm tra lại link nhạc!";
+                    statusDiv.style.color = "#ff4444";
+                    btn.disabled = false;
+                });
+        }
 
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(() => console.log("Ứng dụng PWA đã sẵn sàng!"))
-                .catch(err => console.log("Lỗi đăng ký sw:", err));
+            navigator.serviceWorker.register('sw.js');
         }
     </script>
 </body>
